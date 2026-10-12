@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer-core';
 const [path = '/dev/audio-test.html', ...exprs] = process.argv.slice(2);
 const base = process.env.BASE || 'http://127.0.0.1:5184';
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--window-size=1600,900'] });
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--window-size=1600,900'] });
 try {
   const page = await browser.newPage();
   await page.setViewport({ width: +(process.env.W || 1600), height: +(process.env.H || 900), deviceScaleFactor: +(process.env.DPR || 1) });
