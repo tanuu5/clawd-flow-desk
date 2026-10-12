@@ -471,10 +471,13 @@ export function createRoom() {
     }
     // オーブ
     const lv = Math.min(1, (music.level || 0) * 3.5);
-    A.orbBall.scale.setScalar(1 + kick * 0.06);
-    A.orbMat.emissiveIntensity = 0.25 + lv * 1.2 + kick * 0.6;
-    A.orbMat.emissive.setHSL((t * 0.03) % 1, 0.8, 0.55);
-    A.orbRingMat.color.setRGB(0.5, 2, 2.4).multiplyScalar(0.5 + kick * 0.8);
+    // オーブ：控えめに光らせ、部屋が暗い時間帯（夜・雨）ほどさらに落とす（暗い部屋でまぶしくならないように）
+    const bright = THREE.MathUtils.clamp((env.hemi - 0.3) / 0.85, 0, 1); // 夜 0.1 → 昼 1
+    const orbK = 0.3 + 0.7 * bright;
+    A.orbBall.scale.setScalar(1 + kick * 0.04);
+    A.orbMat.emissiveIntensity = (0.18 + lv * 0.6 + kick * 0.3) * orbK;
+    A.orbMat.emissive.setHSL((t * 0.03) % 1, 0.7, 0.5);
+    A.orbRingMat.color.setRGB(0.5, 2, 2.4).multiplyScalar((0.3 + kick * 0.4) * orbK);
     // 投影バーと画面のゆらぎ
     A.emitMat.color.setRGB(0.4, 2.0, 2.4).multiplyScalar(0.7 + 0.3 * Math.sin(t * 3));
     for (const s of Object.values(A.screens)) s.mat.opacity = (0.93 + Math.sin(t * 37 + s.w * 10) * 0.03) * env.screenAlpha;
