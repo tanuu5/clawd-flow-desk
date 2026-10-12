@@ -18,6 +18,7 @@ try {
     const r = await page.evaluate(`(async () => (${ex}))()`);
     console.log(JSON.stringify(r, null, 1));
   }
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT }); // 最後にページ全体を撮る（UI ごと）
 } finally {
   await browser.close();
 }

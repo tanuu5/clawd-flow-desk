@@ -84,6 +84,8 @@ export function createUI({ music, env, director, focus, onEnv, onStart, store })
   }
   function renderFocus(v) {
     const len = focus.cfg.focus;
+    $('fcStart').textContent = !v.active ? 'はじめる' : v.running ? '一時停止' : '再開';
+    card.classList.toggle('rest', v.active && v.phase === 'rest');
     $('fcTime').textContent = v.active ? v.clock : `${String(len).padStart(2, '0')}:00`;
     $('fcPhase').textContent = !v.active ? '止まっています' : v.phase === 'rest' ? (v.long ? '長めの休憩' : '休憩') + (v.running ? '' : '（一時停止）') : `集中 ${v.round} 回目` + (v.running ? '' : '（一時停止）');
     $('fcStats').textContent = `今日：集中 ${v.done} 回 · ${Math.round(v.focusedSec / 60)} 分`;
@@ -147,6 +149,7 @@ export function createUI({ music, env, director, focus, onEnv, onStart, store })
   });
 
   let last = 0;
+  let shownEnv = env.key;
   return {
     toast,
     focusChanged,
@@ -156,6 +159,7 @@ export function createUI({ music, env, director, focus, onEnv, onStart, store })
       const d = new Date();
       $('clock').textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       renderFocus(fv);
+      if (env.key !== shownEnv) { shownEnv = env.key; setEnvButtons(); } // 動画モードや確認用の操作で変わったとき
       if (!info.song) return;
       $('npSection').textContent = info.section ? info.section.label : '—';
       $('npChord').textContent = info.playing ? info.chord : '—';
