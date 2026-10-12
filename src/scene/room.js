@@ -251,7 +251,7 @@ export function createRoom() {
   A.coaster = new THREE.Vector3(DESK.x + 0.86, DESK.y + 0.006, -1.42);
   mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.006, 24), std(0xb98e5e, 0.8), A.coaster.x, DESK.y + 0.003, A.coaster.z, room, 'coaster');
   // アイスコーヒーを運ぶロボットアーム（Clawd の手はキーボードでふさがっているので）
-  A.arm = new RobotArm(new THREE.Vector3(DESK.x + 0.65, DESK.y, -1.17));
+  A.arm = new RobotArm(new THREE.Vector3(DESK.x + 0.65, DESK.y, -1.28));
   room.add(A.arm.g);
 
   // ---------------------------------------------------------------- 椅子（座面は回る）

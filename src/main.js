@@ -255,6 +255,7 @@ function step(dt) {
   anim.update(dt, { music: info, camera });
   // 椅子は Clawd と一緒に回る
   room.A.chair.swivel.rotation.y = anim.cur.turn;
+  room.A.chair.chair.position.z = SEAT.z + (anim.rollZ || 0);
   const printProgress = fv.active ? (fv.phase === 'focus' ? fv.progress : 1) : ((T / 480) % 1.12);
   room.update(dt, T, info, env.cur, { printProgress: Math.min(1, printProgress) });
   city.update(dt, T, env.cur, camera);

@@ -163,22 +163,24 @@ const bump = (ph, center = 0.08, w = 0.012) => {
 };
 
 // armZ：肩の軸を前へずらす量。legs：脚を前へ出す角度の割合（1 で水平）。turn：π で窓のほうを向く。hold：グラスを手に持つ
+// roll：1 で椅子ごと後ろへ下がる（休憩で振り返るとき、椅子が机に当たらないように ROLL_BACK m 引く）
 const POSES = {
-  sleep:   { lean: -0.17, turn: 0, armL: -0.42, armR: -0.4, fwdL: 0.25, fwdR: 0.25, armZ: 0.04, eye: 0.1, sink: 0.01, legs: 0.85, hold: 0 },
-  idle:    { lean: -0.06, turn: 0, armL: -0.3, armR: -0.3, fwdL: 0.35, fwdR: 0.35, armZ: 0.06, eye: 1, sink: 0, legs: 0.8, hold: 0 },
-  type:    { lean: 0.07, turn: 0, armL: -0.13, armR: -0.13, fwdL: 1.2, fwdR: 1.2, armZ: 0.13, eye: 1, sink: 0, legs: 0.62, hold: 0 },
-  think:   { lean: -0.1, turn: 0, armL: -0.22, armR: 0.55, fwdL: 0.9, fwdR: 1.45, armZ: 0.1, eye: 0.85, sink: 0, legs: 0.7, hold: 0 },
-  stretch: { lean: -0.2, turn: 0, armL: 1.3, armR: 1.3, fwdL: 0.12, fwdR: 0.12, armZ: 0.1, eye: 0.12, sink: -0.015, legs: 1, hold: 0 },
-  sip:     { lean: 0.04, turn: 0, armL: -0.15, armR: -0.28, fwdL: 1.15, fwdR: 1.38, armZ: 0.12, eye: 0.3, sink: 0, legs: 0.65, hold: 1 },
-  joy:     { lean: -0.02, turn: 0, armL: 1.05, armR: 1.0, fwdL: 0.15, fwdR: 0.15, armZ: 0.1, eye: 0.35, sink: 0, legs: 1, hold: 0 },
-  wake:    { lean: -0.05, turn: 0, armL: 1.15, armR: 1.1, fwdL: 0.12, fwdR: 0.2, armZ: 0.1, eye: 0.55, sink: -0.02, legs: 0.9, hold: 0 },
+  sleep:   { lean: -0.17, turn: 0, armL: -0.42, armR: -0.4, fwdL: 0.25, fwdR: 0.25, armZ: 0.04, eye: 0.1, sink: 0.01, legs: 0.85, roll: 0, hold: 0 },
+  idle:    { lean: -0.06, turn: 0, armL: -0.3, armR: -0.3, fwdL: 0.35, fwdR: 0.35, armZ: 0.06, eye: 1, sink: 0, legs: 0.8, roll: 0, hold: 0 },
+  type:    { lean: 0.07, turn: 0, armL: -0.13, armR: -0.13, fwdL: 1.2, fwdR: 1.2, armZ: 0.13, eye: 1, sink: 0, legs: 0.62, roll: 0, hold: 0 },
+  think:   { lean: -0.1, turn: 0, armL: -0.22, armR: 0.55, fwdL: 0.9, fwdR: 1.45, armZ: 0.1, eye: 0.85, sink: 0, legs: 0.7, roll: 0, hold: 0 },
+  stretch: { lean: -0.2, turn: 0, armL: 1.3, armR: 1.3, fwdL: 0.12, fwdR: 0.12, armZ: 0.1, eye: 0.12, sink: -0.015, legs: 1, roll: 0, hold: 0 },
+  sip:     { lean: 0.04, turn: 0, armL: -0.15, armR: -0.28, fwdL: 1.15, fwdR: 1.38, armZ: 0.12, eye: 0.3, sink: 0, legs: 0.65, roll: 0, hold: 1 },
+  joy:     { lean: -0.02, turn: 0, armL: 1.05, armR: 1.0, fwdL: 0.15, fwdR: 0.15, armZ: 0.1, eye: 0.35, sink: 0, legs: 1, roll: 0, hold: 0 },
+  wake:    { lean: -0.05, turn: 0, armL: 1.15, armR: 1.1, fwdL: 0.12, fwdR: 0.2, armZ: 0.1, eye: 0.55, sink: -0.02, legs: 0.9, roll: 0, hold: 0 },
   // 休憩：椅子ごと振り返って窓の外を眺める（グラスを持ったまま）
-  window:  { lean: -0.04, turn: Math.PI, armL: -0.28, armR: -0.3, fwdL: 0.4, fwdR: 1.25, armZ: 0.08, eye: 1, sink: 0, legs: 0.95, hold: 1 },
-  winSip:  { lean: 0.03, turn: Math.PI, armL: -0.28, armR: -0.28, fwdL: 0.4, fwdR: 1.38, armZ: 0.12, eye: 0.3, sink: 0, legs: 0.95, hold: 1 },
+  window:  { lean: -0.04, turn: Math.PI, armL: -0.28, armR: -0.3, fwdL: 0.4, fwdR: 1.25, armZ: 0.08, eye: 1, sink: 0, legs: 0.95, roll: 1, hold: 1 },
+  winSip:  { lean: 0.03, turn: Math.PI, armL: -0.28, armR: -0.28, fwdL: 0.4, fwdR: 1.38, armZ: 0.12, eye: 0.3, sink: 0, legs: 0.95, roll: 1, hold: 1 },
   // ロボットアームとグラスを受け渡すとき（右手を前に出す）
-  reach:   { lean: 0.03, turn: 0, armL: -0.2, armR: -0.22, fwdL: 1.05, fwdR: 1.32, armZ: 0.12, eye: 1, sink: 0, legs: 0.7, hold: 0 },
+  reach:   { lean: 0.03, turn: 0, armL: -0.2, armR: -0.22, fwdL: 1.05, fwdR: 1.32, armZ: 0.12, eye: 1, sink: 0, legs: 0.7, roll: 1, hold: 0 },
 };
 const TIMED = ['wake', 'joy', 'think', 'stretch', 'winSip'];
+export const ROLL_BACK = 0.26;
 
 export class ClawdAnimator {
   /**
@@ -280,8 +282,18 @@ export class ClawdAnimator {
     // ---- ポーズへなめらかに寄せる
     const target = POSES[this.state];
     const rate = this.state === 'joy' || this.state === 'wake' ? 9 : 6;
-    for (const k in target) this.cur[k] = smooth(this.cur[k], target[k], k === 'turn' ? 2.2 : k === 'hold' ? 3 : rate, dt);
+    for (const k in target) {
+      let to = target[k];
+      // 回るのは椅子を引き終えてから。机へ戻るのは向き直ってから
+      if (k === 'turn' && Math.abs(this.cur.roll - target.roll) > 0.12) to = this.cur.turn;
+      if (k === 'roll' && to < this.cur.roll && Math.abs(this.cur.turn) > 0.2) to = this.cur.roll;
+      this.cur[k] = smooth(this.cur[k], to, k === 'turn' ? 2.2 : k === 'roll' ? 2.4 : k === 'hold' ? 3 : rate, dt);
+    }
     const c = this.cur;
+    // 椅子ごと前後に動く（main が椅子も同じだけ動かす）
+    this.baseZ ??= this.p.root.position.z;
+    this.rollZ = -ROLL_BACK * c.roll;
+    this.p.root.position.z = this.baseZ + this.rollZ;
 
     // ---- 拍に合わせた動き（足し算）
     const beat = music.beat || 0;
@@ -445,7 +457,7 @@ export class ClawdAnimator {
   driveArm() {
     const A = this.arm;
     if (!A || !A.idle) return;
-    const settled = () => this.state === 'reach' && this.stateT > 0.7 && Math.abs(this.cur.turn) < 0.08;
+    const settled = () => this.state === 'reach' && this.stateT > 0.7 && Math.abs(this.cur.turn) < 0.08 && this.cur.roll > 0.9;
     const above = () => this.coaster.clone().add(new THREE.Vector3(0, 0.1, 0));
     const hand = () => this.handPos();
     if (this.resting && this.owner !== 'claw') {

@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
-const L1 = 0.34, L2 = 0.3;  // 上腕・前腕の長さ
+const L1 = 0.35, L2 = 0.32; // 上腕・前腕の長さ
 const H0 = 0.1;             // 台座の上面から肩までの高さ
 const REACH = 0.065;        // 手首からグラスの中心まで
 const GRIP_Y = 0.075;       // グラスの底からつかむ高さまで
