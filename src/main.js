@@ -24,7 +24,7 @@ const store = {
 
 // ---------------------------------------------------------------- 描画の準備
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('dev') });
-let pixelRatio = Math.min(devicePixelRatio || 1, 1.75);
+let pixelRatio = Math.min(devicePixelRatio || 1, 1.5); // 作業中に長く流しておくものなので、解像度は控えめに
 renderer.setPixelRatio(pixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -299,7 +299,7 @@ resize();
 // 重いときは解像度を少し下げる
 let slow = 0;
 function adapt(dt) {
-  if (dt > 0.028) slow += dt; else slow = Math.max(0, slow - dt * 0.5);
+  if (dt > 0.024) slow += dt; else slow = Math.max(0, slow - dt * 0.5);
   if (slow > 2 && pixelRatio > 0.8) {
     pixelRatio = Math.max(0.75, pixelRatio - 0.25);
     renderer.setPixelRatio(pixelRatio);
