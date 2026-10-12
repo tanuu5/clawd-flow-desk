@@ -150,7 +150,7 @@ export function buildMixer(ctx, dest, { measure = false } = {}) {
 }
 
 /** 曲ごとのチャンネル。out.* を絞れば、その曲の音（予約済みも含め）が全部消える。 */
-export function makeChannels(ctx, mixer, { solo = null, startAt = 0 } = {}) {
+export function makeChannels(ctx, mixer, { solo = null, startAt = 0, level = 1 } = {}) {
   const out = {};
   for (const k of ['dry', 'chorus', 'bass', 'rev', 'gated', 'delay']) {
     out[k] = ctx.createGain();
@@ -161,7 +161,7 @@ export function makeChannels(ctx, mixer, { solo = null, startAt = 0 } = {}) {
   const extras = [];
   for (const [name, c] of Object.entries(CHANNELS)) {
     const input = ctx.createGain();
-    input.gain.value = solo && !solo.includes(name) ? 0 : c.gain;
+    input.gain.value = solo && !solo.includes(name) ? 0 : c.gain * level;
     let node = input;
     if (c.duck) { const d = ctx.createGain(); node.connect(d); node = d; ducks.push(d); }
     if (c.tone) { // ギターの音色
@@ -413,7 +413,8 @@ export class MusicEngine {
 
   makeVoice(song, start, offset = 0) {
     const ctx = this.ctx;
-    const chans = makeChannels(ctx, this.mixer, { startAt: Math.max(ctx.currentTime, start + offset) });
+    // 休憩の曲は少し小さめに（作業の曲より 2dB ほど下げる）
+    const chans = makeChannels(ctx, this.mixer, { startAt: Math.max(ctx.currentTime, start + offset), level: song.isBreak ? 0.78 : 1 });
     const inst = new Instruments(ctx, this.res, chans.inputs, { ducks: chans.ducks, duck: song.duck });
     let ptr = 0;
     while (offset > 0 && ptr < song.events.length && stepTime(song, song.events[ptr].s) < offset) ptr++;
@@ -623,7 +624,7 @@ export async function renderOffline(song, { from = 0, seconds = 20, solo = null,
   const ctx = new OfflineAudioContext(2, Math.floor(sampleRate * seconds), sampleRate);
   const res = makeResources(ctx);
   const mixer = buildMixer(ctx, ctx.destination, { measure });
-  const chans = makeChannels(ctx, mixer, { solo });
+  const chans = makeChannels(ctx, mixer, { solo, level: song.isBreak ? 0.78 : 1 });
   const inst = new Instruments(ctx, res, chans.inputs, { ducks: chans.ducks, duck: song.duck });
   mixer.setDelayTime((60 / song.bpm) * 0.75);
   const t0 = stepTime(song, from) - 0.05;
