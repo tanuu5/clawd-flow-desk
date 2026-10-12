@@ -57,7 +57,9 @@ if (seekTo) {
 }
 console.log(`録画開始：${name}（${minutes} 分の予定、映像 ${(vbr / 1e6).toFixed(1)} Mbps）`);
 
-const file = path.join('shots', name);
+// 書き出し先は開発サーバーのフォルダの shots/（別のフォルダのサーバーで録るときは --root でそのフォルダを指定）
+const root = arg('root', '.');
+const file = path.join(root, 'shots', name);
 const sizeOf = () => { try { return statSync(file).size; } catch { return 0; } };
 let last = '', lastFrames = -1, lastSize = 0, stall = 0;
 for (;;) {
@@ -88,7 +90,7 @@ const phases = log.filter((x) => x.kind === 'phase');
 const chap = phases.map((x, i) => `${i === 0 ? '0:00' : fmt(x.at)} ${x.phase === 'focus' ? `集中 ${x.round}（25 分）` : '休憩（5 分）'}`);
 const songs = log.filter((x) => x.kind === 'song').map((x) => `${fmt(x.at)} ${x.isBreak ? '☕' : String(x.no).padStart(2, '0') + '.'} ${x.title}（${x.titleJa}）`);
 const lines = ['# チャプター', ...chap, '', '# 曲', ...songs];
-const out = path.join('shots', path.dirname(name));
+const out = path.join(root, 'shots', path.dirname(name));
 mkdirSync(out, { recursive: true });
 writeFileSync(path.join(out, path.basename(name, '.mp4') + '-chapters.txt'), lines.join('\n') + '\n');
 writeFileSync(path.join(out, path.basename(name, '.mp4') + '-log.json'), JSON.stringify(log, null, 2));
