@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>audio test</title></head>
+<body style="background:#111;color:#ddd;font:14px monospace">
+<pre id="out">ready</pre>
+<script type="module">
+// 音の確認用（開発サーバーのみ）。曲の一部をオフラインで書き出し、音量と「作業用の曲の特徴」を数値で測る。
+//   特徴量は Orpella ほか (2025) が MIRtoolbox で測ったものに近づけた簡易版：
+//   スペクトル重心・roll-off（85%）・brightness（1500Hz 以上の割合）・オンセット密度（1 秒あたり）・RMS
+import { renderOffline, trackAt, breakAt, CHANNEL_NAMES, MusicEngine } from '/src/audio/engine.js';
+
+const engine = new MusicEngine(); // 曲の生成（テンポのつながり・曲名）を本番と同じにするため
+const songOf = (track, brk = false) => (brk ? engine.breakSongFor(track) : engine.songFor(track));
+
+function stats(buf) {
+  const L = buf.getChannelData(0), R = buf.getChannelData(1);
+  let peak = 0, sum = 0, nan = 0;
+  const win = Math.floor(buf.sampleRate * 0.4); let maxWin = 0, acc = 0;
+  for (let i = 0; i < L.length; i++) {
+    const a = L[i], b = R[i];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) { nan++; continue; }
+    peak = Math.max(peak, Math.abs(a), Math.abs(b));
+    const e = (a * a + b * b) / 2; sum += e; acc += e;
+    if ((i + 1) % win === 0) { maxWin = Math.max(maxWin, acc / win); acc = 0; }
+  }
+  const db = (x) => +(20 * Math.log10(Math.max(1e-9, x))).toFixed(1);
+  return { peakDb: db(peak), rmsDb: db(Math.sqrt(sum / L.length)), maxShortRmsDb: db(Math.sqrt(maxWin)), nan };
+}
+
+// ---------------------------------------------------------------- 特徴量
+function fft(re, im) { // その場で計算する基数 2 の FFT
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+      }
+    }
+  }
+}
+
+function features(buf) {
+  const sr = buf.sampleRate;
+  const L = buf.getChannelData(0), R = buf.getChannelData(1);
+  const N = 2048, hop = 1024;
+  const win = new Float32Array(N).map((_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1)));
+  const bins = N / 2;
+  const avgPow = new Float64Array(bins);
+  let frames = 0, cSum = 0, rSum = 0, bSum = 0, cN = 0, rmSum = 0, bmSum = 0;
+  const flux = [];
+  let prevMag = null;
+  const re = new Float64Array(N), im = new Float64Array(N);
+  for (let off = 0; off + N <= L.length; off += hop) {
+    let e = 0;
+    for (let i = 0; i < N; i++) { const x = (L[off + i] + R[off + i]) * 0.5; re[i] = x * win[i]; im[i] = 0; e += x * x; }
+    fft(re, im);
+    const mag = new Float64Array(bins);
+    let mSum = 0, fm = 0, pTot = 0, pHi = 0;
+    for (let k = 0; k < bins; k++) {
+      const m = Math.hypot(re[k], im[k]);
+      mag[k] = m;
+      const f = (k * sr) / N;
+      mSum += m; fm += f * m;
+      const p = m * m; pTot += p; if (f >= 1500) pHi += p;
+      avgPow[k] += p;
+    }
+    if (e / N > 1e-7) { // 無音のコマは数えない
+      cSum += fm / mSum;
+      let acc = 0, ro = 0;
+      for (let k = 0; k < bins; k++) { acc += mag[k] * mag[k]; if (acc >= 0.85 * pTot) { ro = (k * sr) / N; break; } }
+      rSum += ro; bSum += pHi / pTot; cN++;
+      // MIRtoolbox と同じく振幅スペクトルで数えた roll-off と brightness
+      let am = 0, rom = 0, mHi = 0;
+      for (let k = 0; k < bins; k++) { if ((k * sr) / N >= 1500) mHi += mag[k]; }
+      for (let k = 0; k < bins; k++) { am += mag[k]; if (am >= 0.85 * mSum) { rom = (k * sr) / N; break; } }
+      rmSum += rom; bmSum += mHi / mSum;
+    }
+    // スペクトルフラックス（対数振幅の増えた分）→ オンセット
+    if (prevMag) { let f = 0; for (let k = 2; k < bins; k++) { const d = Math.log1p(mag[k] * 10) - Math.log1p(prevMag[k] * 10); if (d > 0) f += d; } flux.push(f); } else flux.push(0);
+    prevMag = mag;
+    frames++;
+  }
+  // 全体の平均スペクトルでの値
+  let gm = 0, gf = 0, gTot = 0, gHi = 0;
+  for (let k = 0; k < bins; k++) { const f = (k * sr) / N; const m = Math.sqrt(avgPow[k]); gm += m; gf += f * m; gTot += avgPow[k]; if (f >= 1500) gHi += avgPow[k]; }
+  let acc = 0, gRo = 0;
+  for (let k = 0; k < bins; k++) { acc += avgPow[k]; if (acc >= 0.85 * gTot) { gRo = (k * sr) / N; break; } }
+  let acc95 = 0, gRo95 = 0;
+  for (let k = 0; k < bins; k++) { acc95 += avgPow[k]; if (acc95 >= 0.95 * gTot) { gRo95 = (k * sr) / N; break; } }
+  let above6k = 0;
+  for (let k = 0; k < bins; k++) if ((k * sr) / N >= 6000) above6k += avgPow[k];
+  // オンセット：移動中央値より十分大きい山を数える（最短間隔 80ms）
+  const hopSec = hop / sr;
+  const onsets = [];
+  const w = 8;
+  for (let i = 1; i < flux.length - 1; i++) {
+    const seg = flux.slice(Math.max(0, i - w), i + w + 1).sort((a, b) => a - b);
+    const med = seg[seg.length >> 1];
+    const mean = seg.reduce((s, x) => s + x, 0) / seg.length;
+    if (flux[i] > flux[i - 1] && flux[i] >= flux[i + 1] && flux[i] > med * 1.5 + mean * 0.1 && flux[i] > 1) {
+      const t = i * hopSec;
+      if (!onsets.length || t - onsets[onsets.length - 1] > 0.08) onsets.push(t);
+    }
+  }
+  const dur = L.length / sr;
+  const r = (x, d = 0) => +x.toFixed(d);
+  return {
+    centroidHz: r(cSum / cN), rolloffHz: r(rSum / cN), brightness: r(bSum / cN, 3),
+    rolloffMagHz: r(rmSum / cN), brightnessMag: r(bmSum / cN, 3),
+    globalCentroidHz: r(gf / gm), globalRolloffHz: r(gRo), rolloff95Hz: r(gRo95), globalBrightness: r(gHi / gTot, 3),
+    energyAbove6k: r(above6k / gTot, 4), onsetsPerSec: r(onsets.length / dur, 2),
+  };
+}
+
+function wav(buf) {
+  const n = buf.length, ch = 2, sr = buf.sampleRate;
+  const out = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const w = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); out.setUint32(4, 36 + n * ch * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true); out.setUint32(24, sr, true);
+  out.setUint32(28, sr * ch * 2, true); out.setUint16(32, ch * 2, true); out.setUint16(34, 16, true); w(36, 'data'); out.setUint32(40, n * ch * 2, true);
+  const L = buf.getChannelData(0), R = buf.getChannelData(1);
+  for (let i = 0; i < n; i++) {
+    out.setInt16(44 + i * 4, Math.max(-1, Math.min(1, L[i])) * 32767, true);
+    out.setInt16(46 + i * 4, Math.max(-1, Math.min(1, R[i])) * 32767, true);
+  }
+  return out.buffer;
+}
+
+window.songInfo = (track = 0, brk = false) => {
+  const s = songOf(track, brk);
+  return { title: s.title, titleJa: s.titleJa, style: s.style, bpm: s.bpm, key: s.keyName, loop: s.loopName, lead: s.leadPatch, bars: s.lengthSteps / 16, minutes: +((s.lengthSteps / 4) * 60 / s.bpm / 60).toFixed(2), plan: s.sections.map((x) => x.type[0] + x.bars).join(' '), events: s.events.length };
+};
+
+window.audioTest = async ({ track = 0, brk = false, from = null, section = 'main', seconds = 16, solo = null, save = null, measure = false, feat = true } = {}) => {
+  const song = songOf(track, brk);
+  let start = from;
+  if (start == null) { const s = song.sections.find((x) => x.type === section) || song.sections[0]; start = s.startBar * 16; }
+  const buf = await renderOffline(song, { from: start, seconds, solo, measure });
+  const st = stats(buf);
+  if (save) await fetch('/__save?name=' + encodeURIComponent(save), { method: 'POST', body: wav(buf) });
+  return { title: song.title, bpm: song.bpm, style: song.style, ...st, ...(feat && !measure ? features(buf) : {}) };
+};
+
+window.channelLevels = async ({ track = 0, brk = false, section = 'main', seconds = 8 } = {}) => {
+  const out = {};
+  for (const c of CHANNEL_NAMES) { if (c === 'fx') continue; out[c] = (await window.audioTest({ track, brk, section, seconds, solo: [c], measure: true, feat: false })).rmsDb; }
+  out.all = (await window.audioTest({ track, brk, section, seconds, measure: true, feat: false })).rmsDb;
+  return out;
+};
+
+// 曲の中の区間ごとに特徴量を測る（区間の頭から seconds 秒）
+window.sectionFeatures = async ({ track = 0, brk = false, seconds = 12 } = {}) => {
+  const song = songOf(track, brk);
+  const seen = new Set();
+  const out = [];
+  for (const sec of song.sections) {
+    if (seen.has(sec.type)) continue;
+    seen.add(sec.type);
+    const r = await window.audioTest({ track, brk, from: sec.startBar * 16, seconds });
+    out.push({ sec: sec.type, peak: r.peakDb, rms: r.rmsDb, cen: r.centroidHz, roMag: r.rolloffMagHz, brMag: r.brightnessMag, roPow: r.rolloffHz, hi6k: r.energyAbove6k, ons: r.onsetsPerSec, nan: r.nan });
+  }
+  return { title: song.title, style: song.style, bpm: song.bpm, out };
+};
+document.getElementById('out').textContent = 'loaded';
+window.__ready = true;
+</script>
+</body></html>

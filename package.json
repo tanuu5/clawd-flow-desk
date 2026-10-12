@@ -1,0 +1,21 @@
+{
+  "name": "clawd-flow-desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clawd が近未来の高層オフィスで、作業用の曲を聴きながら仕事をする 3D アプリ",
+  "author": "たぬ",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.43.1",
+    "vite": "^8.3.1"
+  }
+}

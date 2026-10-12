@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Clawd Flow Desk</title>
+  <meta name="description" content="Clawd が近未来の高層オフィスで、作業用の曲を聴きながら仕事をする 3D アプリ。集中しやすいとされる曲の特徴に合わせて、その場で自動作曲・合成しています。集中タイマー付き。" />
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 150 110'%3E%3Crect x='12' y='35' width='24' height='22' fill='%23C67D5F'/%3E%3Crect x='114' y='35' width='24' height='22' fill='%23C67D5F'/%3E%3Crect x='32' y='8' width='86' height='66' fill='%23C67D5F'/%3E%3Crect x='32' y='74' width='11' height='22' fill='%23C67D5F'/%3E%3Crect x='53' y='74' width='11' height='22' fill='%23C67D5F'/%3E%3Crect x='86' y='74' width='11' height='22' fill='%23C67D5F'/%3E%3Crect x='107' y='74' width='11' height='22' fill='%23C67D5F'/%3E%3Crect x='50' y='22' width='13' height='13' fill='%23141414'/%3E%3Crect x='88' y='22' width='13' height='13' fill='%23141414'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body class="intro">
+  <div id="app"></div>
+
+  <header class="logo" id="logo">
+    <div class="logo-mark">FLOW DESK</div>
+    <div class="logo-sub">Clawd の作業部屋 · 62F · <span id="clock">--:--</span></div>
+  </header>
+
+  <nav class="top-controls" id="topControls" aria-label="表示の設定">
+    <div class="seg" role="group" aria-label="時間帯">
+      <button data-env="morning" title="朝（1）">朝</button>
+      <button data-env="day" title="昼（2）">昼</button>
+      <button data-env="sunset" title="夕暮れ（3）">夕暮れ</button>
+      <button data-env="night" title="夜（4）">夜</button>
+      <button data-env="rain" title="雨の夜（5）">雨</button>
+    </div>
+    <div class="seg" role="group" aria-label="カメラ">
+      <button data-cam="auto" title="カメラが自動で切り替わる（C）">オート</button>
+      <button data-cam="free" title="ドラッグで見回す（C）">自由</button>
+    </div>
+    <button class="icon" id="btnHide" title="UI を隠す（H）" aria-label="UI を隠す">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="currentColor" stroke-width="2" d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7a12.6 12.6 0 0 1-3.2 4.2M6.2 6.6C4 8 2.6 10 2 12c1 2.5 5 7 10 7a9.7 9.7 0 0 0 4.4-1"/></svg>
+    </button>
+    <button class="icon" id="btnFull" title="全画面" aria-label="全画面">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </nav>
+
+  <section class="player card" id="player" aria-label="再生中の曲">
+    <div class="np-head">
+      <div class="np-label">NOW PLAYING <span class="np-fm">FLOW FM 62.0</span></div>
+      <button class="link" id="btnList" aria-expanded="false">曲リスト ▾</button>
+    </div>
+    <div class="np-title" id="npTitle">—</div>
+    <div class="np-sub" id="npSub">再生ボタンを押すと、Clawd が仕事をはじめます</div>
+    <div class="np-chips">
+      <span class="chip sec" id="npSection">—</span>
+      <span class="chip chord" id="npChord">—</span>
+      <span class="chip meta" id="npMeta">—</span>
+    </div>
+    <div class="np-progress"><div class="bar"><div class="fill" id="npFill"></div></div><span id="npTime">0:00 / 0:00</span></div>
+    <div class="np-controls">
+      <button class="round" id="btnPrev" title="前の曲（←）" aria-label="前の曲"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="round big" id="btnPlay" title="再生 / 一時停止（Space）" aria-label="再生"><svg id="icoPlay" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M7 4v16l14-8z"/></svg><svg id="icoPause" viewBox="0 0 24 24" width="24" height="24" hidden><path fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+      <button class="round" id="btnNext" title="次の曲（→）" aria-label="次の曲"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      <label class="vol" title="音量"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/><path fill="none" stroke="currentColor" stroke-width="2" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg><input type="range" id="vol" min="0" max="1" step="0.01" value="0.75" aria-label="音量" /></label>
+      <label class="toggle" title="Clawd がキーを打つ音"><input type="checkbox" id="typing" /> <span>タイピング音</span></label>
+    </div>
+    <ol class="tracklist" id="trackList" hidden></ol>
+  </section>
+
+  <section class="focus card" id="focusCard" aria-label="集中タイマー">
+    <div class="fc-head">
+      <div class="np-label">集中タイマー</div>
+      <div class="seg small" role="group" aria-label="時間の長さ">
+        <button data-preset="25/5" title="集中 25 分・休憩 5 分">25/5</button>
+        <button data-preset="50/10" title="集中 50 分・休憩 10 分">50/10</button>
+      </div>
+    </div>
+    <div class="fc-body">
+      <div class="fc-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="fcRing" cx="50" cy="50" r="44"/></svg><div class="fc-time" id="fcTime">25:00</div></div>
+      <div class="fc-side">
+        <div class="fc-phase" id="fcPhase">止まっています</div>
+        <div class="fc-stats" id="fcStats">今日：集中 0 回</div>
+        <div class="fc-btns">
+          <button class="pill" id="fcStart" title="はじめる / 一時停止（T）">はじめる</button>
+          <button class="round sm" id="fcSkip" title="次の区切りへ" aria-label="次の区切りへ"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+          <button class="round sm" id="fcReset" title="タイマーを止める" aria-label="タイマーを止める"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M6 6h12v12H6z"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="start" id="start">
+    <div class="start-card">
+      <div class="logo-mark big">FLOW DESK</div>
+      <p class="lead">62 階の作業部屋で、Clawd が仕事の準備をしています。<br />作業用の曲を流して、いっしょに集中しましょう。</p>
+      <div class="start-btns">
+        <button class="start-btn" id="btnStart"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M7 4v16l14-8z"/></svg> 曲を流して作業する</button>
+        <button class="start-btn sub" id="btnStartFocus" title="集中 25 分・休憩 5 分をくり返します">＋ 集中タイマーも使う</button>
+      </div>
+      <p class="note">音が出ます。曲はその場で自動作曲・合成しています（全 8 曲 ＋ 続きはおまかせ。曲と曲は途切れずにつながります）。<br />集中しやすいとされる曲の特徴 ― 中くらいのテンポ、はっきりした拍、シンプルな和音、高すぎない音 ― に合わせて作っています。<br /><span class="keys">Space 再生／停止 · ← → 曲送り · 1〜5 時間帯 · T タイマー · C カメラ · H UI を隠す · </span>Clawd をタップすると喜びます</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
