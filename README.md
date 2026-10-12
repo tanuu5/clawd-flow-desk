@@ -10,7 +10,7 @@
   <img src="docs/screenshots/desk.webp" width="800" alt="キーを打つ Clawd の前に、ロボットアームがアイスコーヒーを運んでくる。Clawd は打ちながら、目を細めてストローで飲む">
 </p>
 
-<p align="center"><b><a href="https://tanuu5.github.io/clawd-flow-desk/">▶ ブラウザで開く</a></b>（インストール不要・音が出ます）</p>
+<p align="center"><b><a href="https://tanuu5.github.io/clawd-flow-desk/">▶ ブラウザで開く</a></b>（インストール不要・音が出ます）　／　<b><a href="https://youtu.be/S5DgibwoKRs">▶ 作業用BGM 1時間（YouTube）</a></b></p>
 
 **Claude Code × Claude Opus 5.5（XHIGH）** で作りました。
 
@@ -38,6 +38,14 @@
 </table>
 
 画像と動画は、すべて実際の画面です。
+
+## 作業用 BGM の動画（YouTube）
+
+この作業部屋を 1 時間流しっぱなしにして録画した、ポモドーロ付きの作業用 BGM の動画です。集中 25 分と休憩 5 分を 2 回くり返し、時間帯は朝 → 昼 → 夕暮れ → 夜 → 雨の夜と移ります。画面の右上に残り時間が出ます。
+
+<p align="center">
+  <a href="https://youtu.be/S5DgibwoKRs"><img src="docs/screenshots/bgm-video.jpg" width="640" alt="YouTube の動画「作業用BGM 1時間」のサムネイル。窓の外から見た部屋で、Clawd がアイスコーヒーをストローで飲んでいる"></a>
+</p>
 
 ## 使い方
 
@@ -88,6 +96,7 @@ Orpella ほか（2025, PLOS ONE）は、集中を助けるとうたう音楽を�
 
 ## 更新履歴
 
+- **2026-10-12**：作業用 BGM の動画（1 時間・ポモドーロ付き）を YouTube で公開
 - **2026-10-12**：公開
 
 ## 開発
