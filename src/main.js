@@ -321,7 +321,7 @@ const dev = installDevHarness({
     return dev.state();
   },
   extra: {
-    music, anim, env, director, clawd, room, city, dbg, screens, focus, glass,
+    music, anim, env, director, clawd, room, city, dbg, screens, focus, glass, shots: SHOTS, // shots：撮影用にショットを足せる
     /** 音なしで拍だけ進める（撮影用）。{ track, energy, t0, brk } */
     fakeMusic(o = {}) { fake = { track: 0, t0: 30, ...o, start: T }; document.getElementById('start').classList.add('hide'); document.body.classList.remove('intro'); return true; },
     stopFake() { fake = null; },
