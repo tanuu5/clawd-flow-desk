@@ -50,7 +50,7 @@ clawd.root.position.set(SEAT.x, SEAT.y, SEAT.z);
 scene.add(clawd.root);
 const glass = makeIcedCoffee();
 scene.add(glass);
-const anim = new ClawdAnimator(clawd, { glass, coaster: room.A.coaster });
+const anim = new ClawdAnimator(clawd, { glass, coaster: room.A.coaster, arm: room.A.arm });
 
 const drops = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.x1 - ROOM.x0, ROOM.h), dropletsMaterial());
 drops.material.uniforms.uAspect.value = (ROOM.x1 - ROOM.x0) / ROOM.h;

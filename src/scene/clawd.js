@@ -125,7 +125,7 @@ function makeHeadphones() {
 export function makeIcedCoffee() {
   const g = new THREE.Group();
   g.name = 'icedCoffee';
-  const h = 0.15, r = 0.034;
+  const h = 0.125, r = 0.034;
   const glassMat = new THREE.MeshStandardMaterial({ color: 0xdff6ff, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.26, depthWrite: false });
   const cup = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.82, h, 24, 1, true), glassMat);
   cup.position.y = h / 2;
@@ -175,14 +175,25 @@ const POSES = {
   // 休憩：椅子ごと振り返って窓の外を眺める（グラスを持ったまま）
   window:  { lean: -0.04, turn: Math.PI, armL: -0.28, armR: -0.3, fwdL: 0.4, fwdR: 1.25, armZ: 0.08, eye: 1, sink: 0, legs: 0.95, hold: 1 },
   winSip:  { lean: 0.03, turn: Math.PI, armL: -0.28, armR: -0.28, fwdL: 0.4, fwdR: 1.38, armZ: 0.12, eye: 0.3, sink: 0, legs: 0.95, hold: 1 },
+  // ロボットアームとグラスを受け渡すとき（右手を前に出す）
+  reach:   { lean: 0.03, turn: 0, armL: -0.2, armR: -0.22, fwdL: 1.05, fwdR: 1.32, armZ: 0.12, eye: 1, sink: 0, legs: 0.7, hold: 0 },
 };
-const TIMED = ['wake', 'sip', 'joy', 'think', 'stretch', 'winSip'];
+const TIMED = ['wake', 'joy', 'think', 'stretch', 'winSip'];
 
 export class ClawdAnimator {
-  /** glass：アイスコーヒー（シーン直下に置く）。coaster：机の上の置き場所（ワールド座標） */
-  constructor(parts, { glass = null, coaster = null } = {}) {
+  /**
+   * glass：アイスコーヒー（シーン直下に置く）。coaster：机の上の置き場所（ワールド座標）。arm：運ぶロボットアーム
+   * グラスはいつも「コースター」「ロボットアーム」「Clawd の右手」のどれかにある（owner）。
+   *   作業中に飲む：アームがコースターから口元の前まで運び、Clawd は打ちながらストローで飲む
+   *   休憩：アームが右手に手渡し、Clawd はグラスを持ったまま振り返る。休憩が終わると、アームが受け取ってコースターへ戻す
+   */
+  constructor(parts, { glass = null, coaster = null, arm = null } = {}) {
     this.p = parts;
     this.glass = glass;
+    this.arm = arm;
+    this.owner = 'coaster';
+    this.sipping = false;
+    this.stateT = 0;
     this.coaster = coaster ? coaster.clone() : new THREE.Vector3();
     this.state = 'sleep';
     this.timer = 0;
@@ -224,12 +235,15 @@ export class ClawdAnimator {
   setResting(on) {
     if (on === this.resting) return;
     this.resting = on;
-    if (on) { this.start('stretch', 2.6); this.coolBreakSip = 5; }
-    else { this.start('stretch', 1.6); }
+    if (on) { this.start('stretch', 2.6); this.coolBreakSip = 7; }
   }
 
-  /** その状態のポーズへ一気に移る（録画の途中から始めるとき） */
-  snap(state) { this.state = state; this.cur = { ...POSES[state] }; this.amt = 1; this.idleTime = 0; }
+  /** その状態のポーズへ一気に移る（録画の途中から始めるとき）。休憩中ならグラスも右手に */
+  snap(state) {
+    this.state = state; this.cur = { ...POSES[state] }; this.amt = 1; this.idleTime = 0;
+    if (this.arm) { this.arm.clear(); this.arm.p.copy(this.arm.restPoint()); this.arm.grip = 0; }
+    this.owner = POSES[state].hold ? 'claw' : 'coaster';
+  }
 
   update(dt, { music, camera }) {
     const p = this.p;
@@ -241,18 +255,23 @@ export class ClawdAnimator {
 
     // ---- 状態の切り替え
     if (this.timer > 0) this.timer -= dt;
-    const base = this.resting ? 'window' : playing ? 'type' : 'idle';
+    // グラスの受け渡しが要るときは、右手を前に出して待つ
+    const handoff = this.resting ? this.owner !== 'claw' : this.owner === 'claw';
+    const base = handoff ? 'reach' : this.resting ? 'window' : playing ? 'type' : 'idle';
+    const prevState = this.state;
     if (this.state === 'sleep') { if (playing || this.resting) this.start('wake', 2.2); }
-    else if (!playing && !this.resting && this.idleTime > 30) this.start('sleep');
+    else if (!playing && !this.resting && !handoff && this.idleTime > 30) this.start('sleep');
     else if (TIMED.includes(this.state)) { if (this.timer <= 0) this.state = base; }
     else if (this.state !== base) this.state = base;
     if (this.state === 'type') {
       this.coolSip -= dt; this.coolThink -= dt; this.coolStretch -= dt;
       const calm = sec === 'break' || sec === 'intro' || sec === 'outro';
-      if (this.coolThink < 0 && (calm || Math.random() < 0.3)) { this.start('think', 3 + Math.random() * 2.5); this.coolThink = 26 + Math.random() * 24; }
-      else if (this.coolSip < 0) { this.start('sip', 2.6); this.coolSip = 30 + Math.random() * 30; }
-      else if (this.coolStretch < 0 && calm) { this.start('stretch', 2.8); this.coolStretch = 90 + Math.random() * 90; }
+      if (this.coolThink < 0 && !this.sipping && (calm || Math.random() < 0.3)) { this.start('think', 3 + Math.random() * 2.5); this.coolThink = 26 + Math.random() * 24; }
+      else if (this.coolSip < 0 && this.arm?.idle && this.owner === 'coaster') { this.serveSip(); this.coolSip = 35 + Math.random() * 30; }
+      else if (this.coolStretch < 0 && calm && !this.sipping) { this.start('stretch', 2.8); this.coolStretch = 90 + Math.random() * 90; }
     }
+    this.stateT = this.state === prevState ? this.stateT + dt : 0;
+    this.driveArm();
     if (this.state === 'window') {
       this.coolBreakSip -= dt;
       if (this.coolBreakSip < 0) { this.start('winSip', 2.6); this.coolBreakSip = 14 + Math.random() * 10; }
@@ -320,7 +339,8 @@ export class ClawdAnimator {
     if (this.blinkT < 0) { this.blink = 1; this.blinkT = 2.5 + Math.random() * 4; }
     this.blink = Math.max(0, this.blink - dt * 9);
     const blinkClose = this.blink > 0 ? Math.sin(this.blink * Math.PI) : 0;
-    const open = Math.max(0.08, c.eye * (1 - blinkClose * 0.9));
+    this.sipEye = smooth(this.sipEye ?? 0, this.sipping && this.sipK > 0.5 ? 1 : 0, 6, dt);
+    const open = Math.max(0.08, c.eye * (1 - 0.6 * this.sipEye) * (1 - blinkClose * 0.9));
     this.lookHold -= dt;
     if (this.lookHold < 0) {
       this.lookHold = 0.8 + Math.random() * 2.2;
@@ -337,6 +357,7 @@ export class ClawdAnimator {
       } else this.lookTarget.set((Math.random() - 0.5) * 1.6, (Math.random() - 0.4) * 0.8);
     }
     if (this.state === 'think') this.lookTarget.set(0.6, 1);
+    if (this.state === 'reach') this.lookTarget.set(0.7, -0.4);
     if (this.state === 'window') this.lookTarget.set(Math.sin(this.t * 0.4) * 0.8, 0.15);
     this.look.x = smooth(this.look.x, this.lookTarget.x, 12, dt);
     this.look.y = smooth(this.look.y, this.lookTarget.y, 12, dt);
@@ -388,22 +409,105 @@ export class ClawdAnimator {
     }
   }
 
+  /** 右手の先（グラスを持つ位置、グラスの底の中心）をワールド座標で */
+  handPos(out = new THREE.Vector3()) {
+    this.p.root.updateMatrixWorld(true);
+    out.set(C.ARM_W - 0.03, -0.035, C.ARM_D / 2 + 0.034);
+    this.p.armR.localToWorld(out);
+    out.y -= 0.06;
+    return out;
+  }
+
+  /** 作業中に飲む：アームがグラスを口元の前まで運び、しばらく持っていてくれる */
+  serveSip() {
+    const A = this.arm;
+    const above = () => this.coaster.clone().add(new THREE.Vector3(0, 0.1, 0));
+    // Clawd の前（左右のキーボードのあいだ）。机から少し浮かせて持つ
+    const serve = () => { const h = this.p.root.position; return new THREE.Vector3(h.x + 0.1, this.coaster.y + 0.035, h.z + 0.36); };
+    A.run([
+      { move: above, dur: 0.7, lift: 0.04 },
+      { move: () => this.coaster, dur: 0.4, lift: 0 },
+      { grip: 1, dur: 0.3 },
+      { call: () => { this.owner = 'arm'; } },
+      { move: serve, dur: 1.1, lift: 0.14 },
+      { call: () => { this.sipping = true; } },
+      { hold: 2.6, track: serve },
+      { call: () => { this.sipping = false; } },
+      { move: above, dur: 1.0, lift: 0.1 },
+      { move: () => this.coaster, dur: 0.4, lift: 0 },
+      { grip: 0, dur: 0.3 },
+      { call: () => { this.owner = 'coaster'; } },
+      { move: () => A.restPoint(), dur: 0.8, lift: 0.06 },
+    ]);
+  }
+
+  /** 休憩の手渡し・受け取りを、グラスのある場所と休憩かどうかから決めて、アームに頼む */
+  driveArm() {
+    const A = this.arm;
+    if (!A || !A.idle) return;
+    const settled = () => this.state === 'reach' && this.stateT > 0.7 && Math.abs(this.cur.turn) < 0.08;
+    const above = () => this.coaster.clone().add(new THREE.Vector3(0, 0.1, 0));
+    const hand = () => this.handPos();
+    if (this.resting && this.owner !== 'claw') {
+      const pick = this.owner === 'coaster' ? [
+        { move: above, dur: 0.7, lift: 0.04 },
+        { move: () => this.coaster, dur: 0.4, lift: 0 },
+        { grip: 1, dur: 0.3 },
+        { call: () => { this.owner = 'arm'; } },
+      ] : [];
+      // 手渡しの手前で待つ（伸びをしているあいだは、手を追いかけない）
+      const near = () => { const h = this.p.root.position; return new THREE.Vector3(h.x + 0.42, this.coaster.y + 0.06, h.z + 0.42); };
+      A.run([
+        ...pick,
+        { move: near, dur: 1.0, lift: 0.1 },
+        { wait: () => !this.resting || this.state === 'reach', track: near, max: 10 },
+        { move: hand, dur: 0.7, lift: 0.03 },
+        { wait: () => !this.resting || settled(), track: hand, max: 8 },
+        { call: () => {
+          if (!this.resting) return; // 休憩がすぐ終わった：持ったまま、次の判断でコースターへ戻す
+          this.owner = 'claw';
+          A.run([{ grip: 0, dur: 0.25 }, { move: () => A.restPoint(), dur: 0.9, lift: 0.08 }]);
+        } },
+      ]);
+    } else if (!this.resting && this.owner === 'claw') {
+      A.run([
+        { wait: () => this.resting || (this.state === 'reach' && Math.abs(this.cur.turn) < 0.3), max: 8 },
+        { move: hand, dur: 1.0, lift: 0.1 },
+        { wait: () => this.resting || settled(), track: hand, max: 8 },
+        { call: () => {
+          if (this.resting) { A.run([{ move: () => A.restPoint(), dur: 0.8, lift: 0.06 }]); return; }
+          A.run([
+            { grip: 1, dur: 0.3 },
+            { call: () => { this.owner = 'arm'; } },
+            { move: above, dur: 1.0, lift: 0.1 },
+            { move: () => this.coaster, dur: 0.4, lift: 0 },
+            { grip: 0, dur: 0.3 },
+            { call: () => { this.owner = 'coaster'; } },
+            { move: () => A.restPoint(), dur: 0.8, lift: 0.06 },
+          ]);
+        } },
+      ]);
+    } else if (this.owner === 'arm') {
+      // 途中で取りやめになった：コースターへ戻す
+      A.run([
+        { move: above, dur: 1.0, lift: 0.1 },
+        { move: () => this.coaster, dur: 0.4, lift: 0 },
+        { grip: 0, dur: 0.3 },
+        { call: () => { this.owner = 'coaster'; } },
+        { move: () => A.restPoint(), dur: 0.8, lift: 0.06 },
+      ]);
+    }
+  }
+
   updateGlass(dt) {
     const g = this.glass;
     if (!g) return;
-    const p = this.p;
-    const sipping = this.state === 'sip' || this.state === 'winSip';
-    const sipT = sipping ? Math.min(1, (2.6 - this.timer) / 0.6) * Math.min(1, this.timer / 0.5) : 0;
-    this.sipK = smooth(this.sipK, sipT, 10, dt);
-    this.holdK = this.cur.hold;
-    // 右手の先の少し前（ワールド座標）
-    p.root.updateMatrixWorld(true);
-    const hand = this.tmp.set(C.ARM_W - 0.03, -0.035 - 0.04 * this.sipK, C.ARM_D / 2 + 0.03 + 0.06 * this.sipK);
-    p.armR.localToWorld(hand);
-    hand.y -= 0.02;
-    const k = THREE.MathUtils.smoothstep(this.holdK, 0.05, 0.95);
-    g.position.lerpVectors(this.coaster, hand, k);
-    g.position.y += Math.sin(k * Math.PI) * 0.08; // 持ち上げるときの弧
+    this.arm?.update(dt);
+    const sipT = this.state === 'winSip' ? Math.min(1, (2.6 - this.timer) / 0.6) * Math.min(1, this.timer / 0.5) : this.sipping ? 1 : 0;
+    this.sipK = smooth(this.sipK, sipT, this.sipping ? 4 : 10, dt);
+    if (this.owner === 'arm') this.arm.glassPos(g.position);
+    else if (this.owner === 'claw') this.handPos(g.position);
+    else g.position.copy(this.coaster);
     g.rotation.set(0, 0, 0);
     this.aimStraw(this.sipK);
   }
@@ -417,7 +521,7 @@ export class ClawdAnimator {
     const up = this._b.set(-0.045, 0.085, 0).add(A);
     g.updateMatrixWorld(true);
     this._inv.copy(g.matrixWorld).invert();
-    const mouth = this._m.set(0.0, 0.205, C.BODY_D / 2 + 0.006);
+    const mouth = this._m.set(0.0, 0.235, C.BODY_D / 2 + 0.006);
     this.p.hips.localToWorld(mouth);
     mouth.applyMatrix4(this._inv);
     const rise = this._c.copy(A).setY(Math.max(A.y + 0.02, mouth.y + 0.004));

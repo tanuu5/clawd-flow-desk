@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import * as TX from './textures.js';
+import { RobotArm } from './robotArm.js';
 
 export const ROOM = { x0: -4.5, x1: 4.5, z0: -3.2, z1: 3.8, h: 3.1 };
 export const SEAT = { x: 0.75, y: 0.52, z: -1.82 };   // Clawd が座る位置（椅子の座面の上）
@@ -167,9 +168,9 @@ export function createRoom() {
   // ---------------------------------------------------------------- ホログラムの画面（3 枚）
   // 机の奥の投影バーから浮かぶ。左＝コード、右＝ターミナル、上＝音楽と集中タイマー。
   const projMat = std(0x1c1d24, 0.3, { metalness: 0.6 });
-  const projBar = mesh(rbox(1.5, 0.025, 0.05, 0.01), projMat, DESK.x, DESK.y + 0.012, -0.96, room, 'projector');
+  const projBar = mesh(rbox(1.0, 0.025, 0.05, 0.01), projMat, DESK.x, DESK.y + 0.012, -0.96, room, 'projector');
   const emitMat = glow(0.4, 2.0, 2.4);
-  const emit = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.004, 0.012), emitMat);
+  const emit = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.004, 0.012), emitMat);
   emit.position.y = 0.013; projBar.add(emit);
   A.emitMat = emitMat;
   const mkScreen = (name, w, hh, cw, ch, x, y, z, ry, rx = 0) => {
@@ -191,7 +192,7 @@ export function createRoom() {
 
   // ---------------------------------------------------------------- ニキシー管の集中タイマー（机の左手前）
   const nixie = new THREE.Group(); nixie.name = 'nixieTimer'; room.add(nixie);
-  nixie.position.set(DESK.x - 0.78, DESK.y, -0.98);
+  nixie.position.set(DESK.x - 0.86, DESK.y, -0.93);
   nixie.rotation.y = 0.35;
   const walnut = std(0x4a2c1a, 0.45);
   mesh(rbox(0.3, 0.045, 0.085, 0.01), walnut, 0, 0.0225, 0, nixie, 'nixieBase');
@@ -220,7 +221,7 @@ export function createRoom() {
 
   // ---------------------------------------------------------------- 音楽のオーブ（机の右奥の小さなスピーカー）
   const orb = new THREE.Group(); orb.name = 'musicOrb'; room.add(orb);
-  orb.position.set(DESK.x + 0.92, DESK.y, -1.3);
+  orb.position.set(DESK.x - 0.76, DESK.y, -1.3);
   mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.03, 32), std(0xe8e8ee, 0.35), 0, 0.015, 0, orb);
   const orbMat = new THREE.MeshStandardMaterial({ color: 0x20222a, roughness: 0.25, metalness: 0.3, emissive: new THREE.Color(0.3, 0.8, 1.0), emissiveIntensity: 0.4 });
   const orbBall = mesh(new THREE.SphereGeometry(0.07, 32, 20), orbMat, 0, 0.1, 0, orb, 'orbBall');
@@ -232,7 +233,7 @@ export function createRoom() {
   // ---------------------------------------------------------------- 机の上の小物
   // 多肉植物
   const succ = new THREE.Group(); succ.name = 'succulent'; room.add(succ);
-  succ.position.set(DESK.x - 0.88, DESK.y, -1.42);
+  succ.position.set(DESK.x - 0.95, DESK.y, -1.5);
   mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.07, 20), std(0xf0ebe2, 0.6), 0, 0.035, 0, succ);
   mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.004, 20), std(0x2a1d14, 1), 0, 0.066, 0, succ);
   const leafMat = std(0x6f9a6a, 0.6);
@@ -242,13 +243,16 @@ export function createRoom() {
     lf.scale.set(0.7, 1.6, 0.7); lf.rotation.set(Math.sin(a) * 0.6, 0, -Math.cos(a) * 0.6);
   }
   // ノートとペン
-  const note = mesh(rbox(0.15, 0.012, 0.21, 0.004), std(0x2d4a6e, 0.7), DESK.x + 0.82, DESK.y + 0.006, -0.95, room, 'notebook');
+  const note = mesh(rbox(0.15, 0.012, 0.21, 0.004), std(0x2d4a6e, 0.7), DESK.x + 0.9, DESK.y + 0.006, -0.95, room, 'notebook');
   note.rotation.y = -0.25;
-  const pen = mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.14, 8), std(0xe3846a, 0.4), DESK.x + 0.86, DESK.y + 0.016, -0.94, room);
+  const pen = mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.14, 8), std(0xe3846a, 0.4), DESK.x + 0.93, DESK.y + 0.016, -0.94, room);
   pen.rotation.set(Math.PI / 2, 0, 0.5);
   // コースター（アイスコーヒーを置く場所）
-  A.coaster = new THREE.Vector3(DESK.x + 0.62, DESK.y + 0.004, -1.38);
+  A.coaster = new THREE.Vector3(DESK.x + 0.86, DESK.y + 0.006, -1.42);
   mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.006, 24), std(0xb98e5e, 0.8), A.coaster.x, DESK.y + 0.003, A.coaster.z, room, 'coaster');
+  // アイスコーヒーを運ぶロボットアーム（Clawd の手はキーボードでふさがっているので）
+  A.arm = new RobotArm(new THREE.Vector3(DESK.x + 0.65, DESK.y, -1.17));
+  room.add(A.arm.g);
 
   // ---------------------------------------------------------------- 椅子（座面は回る）
   const chair = new THREE.Group(); chair.name = 'chair'; room.add(chair);
@@ -267,12 +271,13 @@ export function createRoom() {
   const swivel = new THREE.Group(); swivel.name = 'chairSwivel'; chair.add(swivel);
   mesh(rbox(0.66, 0.06, 0.56, 0.03, 3), shellMat, 0, SEAT.y - 0.07, -0.02, swivel, 'chairSeatShell');
   mesh(rbox(0.62, 0.05, 0.5, 0.03, 3), cushionMat, 0, SEAT.y - 0.025, -0.01, swivel, 'chairSeat');
-  // 背もたれは低め（腰だけを支える）。Clawd は背が低いので、後ろからも見えるように
-  const back = new THREE.Group(); back.position.set(0, SEAT.y, -0.27); back.rotation.x = -0.1; swivel.add(back);
-  for (const s of [-1, 1]) mesh(rbox(0.04, 0.2, 0.04, 0.015), shellMat, s * 0.26, 0.08, -0.03, back);
-  mesh(rbox(0.66, 0.2, 0.07, 0.05, 4), shellMat, 0, 0.24, -0.02, back, 'chairBack');
-  mesh(rbox(0.58, 0.15, 0.04, 0.035, 4), cushionMat, 0, 0.24, 0.025, back);
-  mesh(new THREE.BoxGeometry(0.67, 0.018, 0.075), accentMat, 0, 0.145, -0.02, back);
+  // 背もたれは低め（Clawd は背が低いので、後ろからも見えるように）。座面のシェルから立ち上がるひと続きの形
+  const back = new THREE.Group(); back.position.set(0, SEAT.y - 0.09, -0.27); back.rotation.x = -0.1; swivel.add(back);
+  mesh(rbox(0.66, 0.4, 0.07, 0.035, 4), shellMat, 0, 0.2, 0, back, 'chairBack');
+  mesh(rbox(0.56, 0.2, 0.035, 0.03, 4), cushionMat, 0, 0.27, 0.045, back);
+  mesh(rbox(0.3, 0.02, 0.008, 0.004), accentMat, 0, 0.3, -0.038, back);
+  // 座面の後ろの角と背もたれのすき間を埋める
+  mesh(rbox(0.66, 0.08, 0.12, 0.03, 3), shellMat, 0, SEAT.y - 0.07, -0.25, swivel);
   A.chair = { chair, swivel };
 
   // ---------------------------------------------------------------- 右の壁ぎわ：棚（3D プリンタ、ミニサーバー、VR ゴーグル）
