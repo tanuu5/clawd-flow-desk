@@ -358,7 +358,7 @@ export class MusicEngine {
   }
 
   updateAmbience() {
-    if (!this.ctx) return;
+    if (!this.ctx || this.faded) return;
     const t = this.ctx.currentTime;
     this.ambience.out.gain.setTargetAtTime(this.volume, t, 0.05);
     this.ambience.rainGain.gain.setTargetAtTime(this.rain ? 0.2 : 0, t, 0.8);
@@ -472,6 +472,19 @@ export class MusicEngine {
     this.state = 'idle';
     this.updateAmbience();
     this.emit('state');
+  }
+
+  /** 音（曲と環境音）を sec 秒かけて消してから止める（動画の終わり）。 */
+  fadeOut(sec = 6) {
+    if (!this.ctx) return;
+    this.faded = true; // 止めたあとに環境音（雨）が戻らないように
+    const t = this.ctx.currentTime;
+    for (const g of [this.mixer.vol.gain, this.ambience.out.gain]) {
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0, t + sec);
+    }
+    setTimeout(() => this.stop(), sec * 1000 + 300);
   }
 
   /** 効果音が鳴らせる状態にする（一時停止中でも鳴らしたいとき）。 */

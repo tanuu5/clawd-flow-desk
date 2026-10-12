@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// record-video.mjs — 作業用 BGM 動画を録る（実時間）。
+// record-video.mjs — 作業用 BGM 動画（ポモドーロ付き）を録る（実時間）。
 //
 //   npm run dev                                   # 開発サーバー（/__append で書き出しを受け取る）
-//   caffeinate -dims node dev/record-video.mjs --minutes 60   # shots/video/lounge-60min.mp4 と chapters.txt ができる
+//   caffeinate -dims node dev/record-video.mjs --minutes 60   # shots/video/flowdesk-60min.mp4 と chapters.txt ができる
 //
 // Chrome の MP4 録画は、ファイルが 4GB（2^32 バイト）に達すると止まる（60 分・10Mbps で 55 分 50 秒の所で止まった）。
 // ビットレートは、長さから 4GB に収まる値を自動で選ぶ。念のため画面も消さない（caffeinate -d）。
@@ -19,8 +19,8 @@ import path from 'node:path';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
 const minutes = +arg('minutes', 60);
-const base = arg('url', 'http://127.0.0.1:5183/');
-const name = arg('name', `video/lounge-${minutes}min.mp4`);
+const base = arg('url', 'http://127.0.0.1:5184/');
+const name = arg('name', `video/flowdesk-${minutes}min.mp4`);
 const seekTo = arg('seek', null); // 確認用：最初の曲の何秒目へ飛ぶか
 const from = arg('from', null);   // 途中から録る：動画の何秒目から
 const track = arg('track', null); //              何曲目（0 始まり）を頭から
@@ -81,9 +81,13 @@ for (;;) {
   if ((Date.now() - started) / 1000 > minutes * 60 + 15 * 60) { console.log('時間を超えたので止めます'); break; }
 }
 await page.evaluate(() => window.__video.finish());
-const log = await page.evaluate(() => window.__video.state.log);
+const log = await page.evaluate(() => window.__video.state.log.map(({ song, ...x }) => x));
 const fmt = (t) => { t = Math.max(0, Math.floor(t)); const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60; return (h ? `${h}:${String(m).padStart(2, '0')}` : `${m}`) + `:${String(s).padStart(2, '0')}`; };
-const lines = log.map((x, i) => `${i === 0 ? '0:00' : fmt(x.at)} ${String(x.no).padStart(2, '0')}. ${x.title}（${x.titleJa}）`);
+// チャプター：集中・休憩の区切り（YouTube の説明欄にそのまま貼れる形）と、曲の一覧
+const phases = log.filter((x) => x.kind === 'phase');
+const chap = phases.map((x, i) => `${i === 0 ? '0:00' : fmt(x.at)} ${x.phase === 'focus' ? `集中 ${x.round}（25 分）` : '休憩（5 分）'}`);
+const songs = log.filter((x) => x.kind === 'song').map((x) => `${fmt(x.at)} ${x.isBreak ? '☕' : String(x.no).padStart(2, '0') + '.'} ${x.title}（${x.titleJa}）`);
+const lines = ['# チャプター', ...chap, '', '# 曲', ...songs];
 const out = path.join('shots', path.dirname(name));
 mkdirSync(out, { recursive: true });
 writeFileSync(path.join(out, path.basename(name, '.mp4') + '-chapters.txt'), lines.join('\n') + '\n');
